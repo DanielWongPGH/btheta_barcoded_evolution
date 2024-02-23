@@ -1,0 +1,9 @@
+data/*
+!data/data.zip
+figures/*
+notebooks/*
+!notebooks/0_barcode_processing.ipynb
+!notebooks/1_monocolonization_muller_fig.ipynb
+!notebooks/1a_monocolonziation_muller_supplemental.ipynb
+!notebooks/monocolonization_transission_figs.ipynb
+

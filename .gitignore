@@ -1,5 +1,5 @@
 data/*
-!data/data.zip
+# !data/data.zip
 figures/*
 notebooks/*
 !notebooks/0_barcode_processing.ipynb

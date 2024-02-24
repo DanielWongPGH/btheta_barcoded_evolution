@@ -1,9 +1,19 @@
+.DS_Store
 data/*
 !data/data.zip
 figures/*
 notebooks/*
 !notebooks/0_barcode_processing.ipynb
 !notebooks/1_monocolonization_muller_fig.ipynb
-!notebooks/1a_monocolonziation_muller_supplemental.ipynb
+!notebooks/1a_monocolonziation_muller_supplementary.ipynb
 !notebooks/2_monocolonization_transission_figs.ipynb
+!notebooks/2a_cecum_feces_correlations.ipynb
+
+!notebooks/6_monocolonization_muller_fig.ipynb
+# !notebooks/7_invitro.ipynb
+!notebooks/7a_invitro_supplementary.ipynb
+
+
+
+
 

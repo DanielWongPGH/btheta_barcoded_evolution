@@ -3,16 +3,22 @@ data/*
 !data/data.zip
 figures/*
 notebooks/*
+notebooks_old/*
+rebarseq_CZbiohub/*
 
 !notebooks/0_barcode_processing.ipynb
+!notebooks/0.5_barcode_processing_excess_noise.ipynb
 !notebooks/1_monocolonization_muller_fig.ipynb
 !notebooks/1a_monocolonization_muller_supplementary.ipynb
 !notebooks/2_monocolonization_transmission_figs.ipynb
-!notebooks/2a_cecum_feces_correlations.ipynb
-
+!notebooks/3_cecum_feces_correlations.ipynb
+#!notebooks/4_isolate_sequencing
+!notebooks/5_comm_selection.ipynb
+# !notebooks/5prec_make_jdfe_from_preexisting_mutations.ipynb
 !notebooks/6_comm_transmission_figs.ipynb
-# !notebooks/7_invitro.ipynb
+!notebooks/7_invitro.ipynb
 !notebooks/7a_invitro_supplementary.ipynb
+!notebooks/7b_invitro_metagenomics.ipynb
 
 
 

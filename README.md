@@ -1,10 +1,8 @@
 # B. thetaiotaomicron Barcoded Evolution
 
-Code, processed data, and analysis notebooks associated with a study of barcoded *Bacteroides thetaiotaomicron* evolution, s
+Code, processed data, and analysis notebooks associated for the paper: "High-resolution lineage tracking of within-host evolution and strain transmission in a human gut symbiont across ecological scales" ([bioRxiv preprint](https://www.biorxiv.org/content/10.1101/2024.02.17.580834v1.abstract))
 
-Paper: [bioRxiv preprint](https://www.biorxiv.org/content/10.1101/2024.02.17.580834v1.abstract)
-
-This repository is under active organization. Workflow details, data provenance, and figure-generation instructions will be expanded as the analysis audit is completed.
+Associated raw barcode, isolate whole genome, and population/metagenomic sequencing data is deposited on the [SRA: BioProject accession PRJNA1111532](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA1111532).
 
 ## Repository structure
 

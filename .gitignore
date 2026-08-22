@@ -9,18 +9,22 @@ rebarseq_CZbiohub/*
 papers/*
 !papers/FIGURE_CALCULATION_CODE_CROSSWALK.md
 remote_snapshot/
+**/__pycache__/
 
 !notebooks/0a_barcode_sorting.ipynb
 !notebooks/0b_barcode_sorting_plots.ipynb
 !notebooks/1_monocolonization_muller.ipynb
 !notebooks/2_monocolonization_transmission.ipynb
 !notebooks/3_cecum_feces_correlations.ipynb
-!notebooks/5b_community_selection_plots.ipynb
 !notebooks/5a_make_jdfe_arrays.ipynb
+!notebooks/5b_community_selection_plots.ipynb
 !notebooks/6_community_transmission.ipynb
 !notebooks/7a_invitro_main.ipynb
 !notebooks/7b_invitro_supplementary.ipynb
 !notebooks/7c_invitro_metagenomics.ipynb
+!notebooks/methods/
+notebooks/methods/*
 !notebooks/methods/shared.py
 !notebooks/methods/sim_barcodes.py
 !notebooks/methods/config.py
+!notebooks/methods/plot_utils.py

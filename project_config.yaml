@@ -1,0 +1,180 @@
+# CHANGE THESE FOR YOUR SYSTEM(S) CONFIG
+
+local:
+  root: .
+  notebooks: notebooks
+  data: data
+  pickles: data/pickled
+  figures: figures
+  tables: data/tables_for_publication
+  papers: papers
+  provenance: provenance
+  raw_processing: raw_processing
+  barcode_counts: data/rebarseq/all_barcode_reads.csv
+  rebarseq: data/rebarseq
+  noise_model: data/pickled/pickled_noise_inference.pkl
+  barcode_arrays: data/pickled
+  isolates: data/isolate_wgs
+  bam_coverage: data/BAM_coverages
+  mgx_timecourses: data/mgx_seq
+  breseq_timecourses: data/breseq_timecourse_files
+  invitro_gd: data/invitro_gd # TODO(Daniel): populate this directory or point it to the historical annotated S1-S6 GD directories.
+  remote_snapshot: remote_snapshot/extracted/kim_barcodes
+  legacy_plots: /Users/daniel/Documents/GoodLab/kim_barcodes/plots # TODO(Daniel): confirm whether outputs still need to be duplicated here.
+  si_figures: /Users/daniel/Dropbox (Daniel Wong)/Btheta barcoding/Figures/Figures SI # TODO(Daniel): confirm whether this external assembly directory is still used.
+
+# CHANGE THESE FOR YOUR SYSTEM(S) CONFIG
+raw_processing:
+  barseq:
+    fastq_dir: /path/to/fastq/files
+    manifest_fastq_dirs:
+      E1_barseq: /path/to/E1_barseq_fastq
+      E2_barseq: /path/to/E2_barseq_fastq
+      EV_barseq: /path/to/vitro_barseq_fastq
+      rebarseq: /path/to/rebarseq_fastq
+    output_dir: /path/to/barseq/output
+    bartender_path: /path/to/bartender-1.1/build
+    execution:
+      scheduler: slurm # slurm or local
+      load_modules: true
+      python: python3
+    slurm:
+      partition: normal
+      memory: 16G
+      time: "30"
+    modules:
+      python: py-scipy/1.12.0_py312
+      viz: viz
+      matplotlib: py-matplotlib/3.8.3_py312
+      gcc: gcc/9.1.0
+    primers:
+      R1: TGCAGTGTCG
+      R2: AAATGCTGTT
+    bartender:
+      extractor_executable: bartender_extractor_com
+      cluster_executable: bartender_single_com
+      pattern: GACT[5]TT[5]AC[5]AA[5]TTGC
+      quality_char: "?"
+      seed_length: 5
+      distance: 2
+      umi_range: 0,16
+
+  isolates:
+    fastq_dir: /path/to/isolate/fastq
+    manifest_fastq_dirs:
+      E1_isolates: /path/to/E1_isolates_fastq
+    output_dir: /path/to/isolate/output
+    trimmomatic:
+      jar: /path/to/Trimmomatic-0.36/trimmomatic-0.36.jar
+      adapters: /path/to/Trimmomatic-0.36/adapters/TruSeq2-PE.fa
+    breseq:
+      path: /path/to/breseq-0.35.7/bin/breseq
+    delly:
+      singularity_image: /path/to/delly_v1.3.1.sif
+    reference:
+      genbank: /path/to/BtVPI-5482.gbk
+    slurm:
+      partition: normal
+      trim: {time: "0:30:00", mem_per_cpu: 16G, cpus: 1}
+      breseq: {time: "6:00:00", mem: 32G}
+      delly: {time: "2:00:00", mem: 16G}
+    modules:
+      R: R
+      biology: biology
+      samtools: samtools
+      system: system
+      ncurses: ncurses/6.0
+      bowtie2: bowtie2
+      numpy: py-numpy/1.14.3_py27
+    trimmomatic_params:
+      illumina_clip: 2:30:10:2:keepBothReads
+      leading: 3
+      trailing: 3
+      minlen: 36
+    breseq_params:
+      polymorphism_reject_indel_homopolymer_length: 0
+      polymorphism_reject_surrounding_homopolymer_length: 0
+      polymorphism_score_cutoff: 2
+      polymorphism_minimum_variant_coverage_each_strand: 0
+    delly_params:
+      min_mapping_quality: 1
+
+  metagenomics:
+    scratch_dir: /path/to/scratch/kim_barcodes
+    execution:
+      scheduler: slurm
+      load_modules: true
+      python: python3
+    manifest_fastq_dirs:
+      E1_MGX_fastq_stems: /path/to/E1_mgx_fastq
+      fastq_stems_E2_mg: /path/to/E2_mgx_fastq
+    output_dirs:
+      breseq: E1_mgx/breseq
+      rebreseq: E1_mgx/rebreseq
+      timecourse: timecourse_files
+      slurm_logs: slurm_logs
+    python2:
+      executable: python
+    trimmomatic:
+      jar: /path/to/Trimmomatic-0.36/trimmomatic-0.36.jar
+      adapters: /path/to/Trimmomatic-0.36/adapters/TruSeq2-PE.fa
+    breseq:
+      path: /path/to/breseq-0.35.7/bin/breseq
+      gdtools: /path/to/breseq-0.35.7/bin/gdtools
+    reference:
+      genbank: /path/to/BtVPI-5482.gbk
+      fasta: /path/to/BtVPI.fasta
+      chromosome: NC_004663
+    slurm:
+      partition: normal
+      trim: {time: "0:30:00", mem_per_cpu: 16G, cpus: 1}
+      breseq: {time: "12:00:00", mem: 32G}
+      rebreseq: {time: "12:00:00", mem: 32G}
+      timecourse: {time: "2:00:00", mem: 10G}
+    modules:
+      R: R
+      biology: biology
+      samtools: samtools
+      system: system
+      ncurses: ncurses/6.0
+      bowtie2: bowtie2
+      numpy: ""
+      scipy: ""
+      gcc: gcc/14.2.0
+    trimmomatic_params:
+      illumina_clip: 2:30:10:2:keepBothReads
+      leading: 3
+      trailing: 3
+      minlen: 36
+    breseq_params:
+      polymorphism_mode: true
+      polymorphism_reject_indel_homopolymer_length: 0
+      polymorphism_reject_surrounding_homopolymer_length: 0
+      polymorphism_score_cutoff: 2
+      polymorphism_minimum_variant_coverage_each_strand: 0
+    timecourse_params:
+      mpileup_quality: 10
+      chunk_size: 50000
+      genome_length: 6400000
+
+remote:
+  host: dpwong@login.sherlock.stanford.edu
+  root: /home/users/dpwong/kim_barcodes
+  scratch: /scratch/users/dpwong/kim_barcodes
+  barseq: /home/users/dpwong/kim_barcodes/process_barseq
+  e1_barseq_fastq: /scratch/users/dpwong/kim_barcodes/E1_fastq
+  e2_barseq_fastq: /scratch/users/dpwong/kim_barcodes/E2_fastq
+  vitro_barseq_fastq: /scratch/users/dpwong/kim_barcodes/vitro_fastq
+  barseq_merged: /home/users/dpwong/kim_barcodes/process_barseq/merged_fastq
+  bartender: /home/users/dpwong/kim_barcodes/process_barseq/bartender
+  bartender_no_umi: /home/users/dpwong/kim_barcodes/process_barseq/bartender_noUMI
+  noise: /home/users/dpwong/kim_barcodes/process_barseq/pseudo_derep
+  noise_estimates: /home/users/dpwong/kim_barcodes/barseq_noise # TODO(Daniel): confirm whether this historical directory should instead be process_barseq/pseudo_derep.
+  pickles: /scratch/users/dpwong/kim_barcodes/pickled # TODO(Daniel): confirm this remote-only intermediate directory.
+  barcode_counts: /home/users/dpwong/kim_barcodes/process_barseq/all_barcode_reads.csv
+  isolates: /home/users/dpwong/kim_barcodes/process_isolates
+  isolate_output: /home/users/dpwong/kim_barcodes/process_isolates/output # TODO(Daniel): confirm this and the historical Sherlock directories exported locally.
+  metagenomics: /home/users/dpwong/kim_barcodes/process_metagenomics
+  mgx_breseq: /scratch/users/dpwong/kim_barcodes/E1_mgx/breseq
+  mgx_rebreseq: /scratch/users/dpwong/kim_barcodes/E1_mgx/rebreseq
+  mgx_timecourses: /scratch/users/dpwong/kim_barcodes/timecourse_files # TODO(Daniel): confirm the export/decompression/renaming step into the local timecourse directories.

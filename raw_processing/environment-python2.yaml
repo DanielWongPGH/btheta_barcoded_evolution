@@ -1,0 +1,8 @@
+# Frozen legacy runtime for the published metagenomic timecourse parsers.
+name: btheta-remote-python2
+channels:
+  - conda-forge
+dependencies:
+  - python=2.7.18
+  - numpy=1.14.3
+  - scipy=1.2.1

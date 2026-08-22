@@ -19,7 +19,6 @@ for path in (PROJECT_ROOT, NOTEBOOKS_DIR):
 
 from project_config import CONFIG_FILE, load_config
 from methods import genomics_util as genomics
-from methods import shared
 
 
 EXCLUSION_LIST = {
@@ -310,7 +309,7 @@ def describe_junction(structural_variant):
     pul_labels = []
     for locus in (locus1, locus2):
         genes = locus.split("-")
-        descriptions.append("/".join(shared.gene_description[gene] for gene in genes))
+        descriptions.append("/".join(genomics.gene_description[gene] for gene in genes))
         pul_labels.append("/".join(
             str(genomics.gene_PUL_map[gene][0])
             for gene in genes if gene in genomics.gene_PUL_map

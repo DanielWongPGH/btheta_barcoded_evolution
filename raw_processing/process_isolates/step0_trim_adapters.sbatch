@@ -17,6 +17,7 @@ samples_file=$2
 # Load configuration
 RAW_PROCESSING_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 source "${RAW_PROCESSING_DIR}/parse_config.sh" "$config_file" isolates
+load_isolate_modules "$MODULE_PYTHON"
 
 # Get untrimmed directory (first line) and sample name (line matching array task ID)
 untrimmed_dir=$(head -1 "$samples_file")
@@ -27,17 +28,25 @@ echo "Input dir: $untrimmed_dir"
 echo "Output dir: $TRIMMED_DIR"
 
 # Define input/output files
-in1=${untrimmed_dir}/${sample}*R1_001.fastq*
-in2=${untrimmed_dir}/${sample}*R2_001.fastq*
+in1=""
+in2=""
+for suffix in .fastq.gz .fastq; do
+    [[ -f "${untrimmed_dir}/${sample}_R1_001${suffix}" ]] && in1="${untrimmed_dir}/${sample}_R1_001${suffix}"
+    [[ -f "${untrimmed_dir}/${sample}_R2_001${suffix}" ]] && in2="${untrimmed_dir}/${sample}_R2_001${suffix}"
+done
+if [[ -z "$in1" || -z "$in2" ]]; then
+    echo "Error: paired FASTQs not found for $sample" >&2
+    exit 1
+fi
 out1=${TRIMMED_DIR}/${sample}_R1_001.fastq.gz
 out2=${TRIMMED_DIR}/${sample}_R2_001.fastq.gz
 out3=${TRIMMED_DIR}/${sample}_R1_001.unpaired.fastq.gz
 out4=${TRIMMED_DIR}/${sample}_R2_001.unpaired.fastq.gz
 
 echo "Running Trimmomatic..."
-java -jar "${TRIMMOMATIC_JAR}" PE \
-    $in1 $in2 \
-    $out1 $out3 $out2 $out4 \
+"$JAVA_BIN" -jar "${TRIMMOMATIC_JAR}" PE \
+    "$in1" "$in2" \
+    "$out1" "$out3" "$out2" "$out4" \
     ILLUMINACLIP:${TRIMMOMATIC_ADAPTERS}:${TRIM_ILLUMINA_CLIP} \
     LEADING:${TRIM_LEADING} \
     TRAILING:${TRIM_TRAILING} \

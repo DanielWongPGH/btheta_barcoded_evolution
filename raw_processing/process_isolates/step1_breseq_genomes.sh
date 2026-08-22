@@ -7,7 +7,7 @@
 #   samples_file - Optional: file with samples (default: samples_in_dir.txt)
 #                  First line is FASTQ directory, subsequent lines are sample names
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -23,8 +23,8 @@ fi
 RAW_PROCESSING_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 source "${RAW_PROCESSING_DIR}/parse_config.sh" "$config_file" isolates
 
-# Load required modules
-ml load ${MODULE_R} ${MODULE_BIOLOGY} ${MODULE_SAMTOOLS} ${MODULE_SYSTEM} ${MODULE_NCURSES} ${MODULE_NUMPY} ${MODULE_BOWTIE2}
+load_isolate_modules "$MODULE_BIOLOGY" "$MODULE_SAMTOOLS" "$MODULE_SYSTEM" \
+    "$MODULE_NCURSES" "$MODULE_BOWTIE2" "$MODULE_NUMPY"
 
 # Create output directories
 create_output_dirs
@@ -50,20 +50,30 @@ for sample_name in $(tail -n +2 "$samples_file"); do
         continue
     fi
 
-    echo "Submitting breseq job for: $sample_name"
-
-    rm -rf "${BRESEQ_DIR}/${sample_name}"
+    if [[ -e "${BRESEQ_DIR}/${sample_name}" ]]; then
+        echo "Error: incomplete breseq output exists for ${sample_name}; remove it after inspection." >&2
+        exit 1
+    fi
     mkdir -p "${BRESEQ_DIR}/${sample_name}"
 
-    sbatch \
-        --job-name="breseq-${sample_name}" \
-        --partition="${SLURM_PARTITION}" \
-        --time="${SLURM_BRESEQ_TIME}" \
-        --mem="${SLURM_BRESEQ_MEM}" \
-        -o "${SLURM_LOG_DIR}/${sample_name}_breseq.out" \
-        -e "${SLURM_LOG_DIR}/${sample_name}_breseq.err" \
-        "${SCRIPT_DIR}/step1_breseq_genomes.sbatch" \
-        "$config_file" "$sample_path" "$sample_name"
+    if [[ "$EXECUTION_SCHEDULER" == "slurm" ]]; then
+        echo "Submitting breseq job for: $sample_name"
+        sbatch \
+            --job-name="breseq-${sample_name}" \
+            --partition="${SLURM_PARTITION}" \
+            --time="${SLURM_BRESEQ_TIME}" \
+            --mem="${SLURM_BRESEQ_MEM}" \
+            -o "${SLURM_LOG_DIR}/${sample_name}_breseq.out" \
+            -e "${SLURM_LOG_DIR}/${sample_name}_breseq.err" \
+            "${SCRIPT_DIR}/step1_breseq_genomes.sbatch" \
+            "$config_file" "$sample_path" "$sample_name"
+    elif [[ "$EXECUTION_SCHEDULER" == "local" ]]; then
+        bash "${SCRIPT_DIR}/step1_breseq_genomes.sbatch" \
+            "$config_file" "$sample_path" "$sample_name"
+    else
+        echo "Error: execution.scheduler must be slurm or local" >&2
+        exit 1
+    fi
 done
 
 echo "All breseq jobs submitted"

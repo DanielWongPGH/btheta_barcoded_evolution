@@ -142,6 +142,31 @@ understood by `population_parameters.py`, including `non_stragglers`,
    expected by notebooks `4b_invivo_metagenomics.ipynb`,
    `invivo_metagenomics.ipynb`, and `4c_BAM_coverages.ipynb`.
 
+8. Build the compact, notebook-ready mutation and coverage indexes after the
+   local export is complete.
+
+   ```bash
+   python raw_processing/process_metagenomics/step6_process_invivo_metagenomics.py
+   ```
+
+   This writes `metagenomic_mutation_timecourses.pkl` and
+   `metagenomic_coverage_timecourses.pkl` under `local.pickles`. Notebook
+   `4b_invivo_metagenomics.ipynb` loads these files directly.
+
+9. Process external annotated in-vitro GD files into the in-vitro mutation
+   table and diagnostics index.
+
+   ```bash
+   python raw_processing/process_metagenomics/step7_process_invitro_metagenomics.py
+   ```
+
+   Configure `local.invitro_gd` to a directory containing `S1_annotated`
+   through `S6_annotated`. The step writes the legacy-named
+   `tableS4_invitro_mutations.tsv` under `local.tables` and
+   `invitro_metagenomic_mutations.pkl` under `local.pickles`; the retained
+   `step7_process_invitro_metagenomics.ipynb` diagnostic notebook loads the
+   latter.
+
 ### Completion checks
 
 - Every requested sample has paired trimmed FASTQs and a `.finished` marker.
@@ -166,6 +191,8 @@ understood by `population_parameters.py`, including `non_stragglers`,
 | `step4_create_distributed_timecourse.sh`, `step4_create_timecourse.sbatch` | Build mutation-timecourse chunks |
 | `step4b_make_coverage_timecourse.sh`, `step4b_make_coverage_timecourse.sbatch` | Build coverage timecourses |
 | `step5_create_merged_timecourse.sh` | Merge chunks with rebreseq junction/indel evidence |
+| `step6_process_invivo_metagenomics.py` | Build notebook-ready mutation and coverage timecourse indexes |
+| `step7_process_invitro_metagenomics.py` | Process annotated in-vitro GDs and build Table S6 plus its diagnostics index |
 | `population_parameters.py` | Select ordered samples for populations |
 | `parse_file.py`, `step4_create_timecourse.py`, `step5_create_breseq_timecourse.py` | Frozen Python 2 timecourse parsers |
 | `../parse_config.sh` | Load the metagenomics section of the shared YAML configuration |

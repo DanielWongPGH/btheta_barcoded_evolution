@@ -1,29 +1,61 @@
-import os
-import sys
+#!/usr/bin/env python3
+"""Create an isolate sample manifest from paired FASTQs and clone metadata."""
 
-fastq_dir = sys.argv[-2].rstrip('/')
-output_name = sys.argv[-1]
-all_files = os.listdir(fastq_dir)
-samples = []
+import argparse
+import csv
+import re
+from pathlib import Path
 
-analyzed_samples = []
-with open(f'clone_barcode.tsv', 'r') as f:
-    header = next(f)
-    for line in f:
-        line = line.rstrip('\n').split('\t')
-        mouse_day_clone = f'm{line[1]}_day{line[2]}_clone{line[3]}'
-        analyzed_samples.append(mouse_day_clone)
 
-for file in all_files:
-    if 'fastq' not in file or file[0] == '.':
-        continue
-    sample = file.rstrip('.gz').rstrip('.fastq').rstrip('_R1_001').rstrip('_R2_001')
+FASTQ_RE = re.compile(r"(?P<stem>.+)_(?P<read>R[12])_001\.fastq(?:\.gz)?$")
 
-    if sample not in samples and sum([x in sample for x in analyzed_samples]) > 0:
-        samples.append(sample)
 
-f = open(f'{output_name.rstrip(".txt")}.txt', 'w')
-f.write(f'{fastq_dir}' + '\n')
-for sample in samples:
-    f.write(f'{sample}' + '\n')
-f.close()
+def clone_tokens(clone_barcode_path):
+    tokens = set()
+    with clone_barcode_path.open(newline="") as handle:
+        for row in csv.DictReader(handle, delimiter="\t"):
+            tokens.add("m{}_day{}_clone{}".format(
+                row["mouse"], row["day"], row["clone"]
+            ))
+    return tokens
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("fastq_dir", type=Path)
+    parser.add_argument("output", type=Path)
+    parser.add_argument(
+        "--clone-barcode", type=Path,
+        default=Path(__file__).with_name("clone_barcode.tsv"),
+    )
+    args = parser.parse_args()
+
+    tokens = clone_tokens(args.clone_barcode)
+    reads = {}
+    for path in args.fastq_dir.iterdir():
+        match = FASTQ_RE.fullmatch(path.name)
+        if not match:
+            continue
+        stem, read = match.group("stem", "read")
+        if not any(re.search(r"(?:^|_){}(?:_|$)".format(re.escape(token)), stem)
+                       for token in tokens):
+            continue
+        reads.setdefault(stem, set()).add(read)
+
+    incomplete = sorted(stem for stem, observed in reads.items()
+                        if observed != {"R1", "R2"})
+    if incomplete:
+        raise SystemExit("Missing mate FASTQ for: {}".format(", ".join(incomplete)))
+
+    samples = sorted(reads)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w") as handle:
+        handle.write(str(args.fastq_dir.resolve()) + "\n")
+        handle.write("\n".join(samples))
+        if samples:
+            handle.write("\n")
+    print("Wrote {} paired isolate samples to {}".format(len(samples), args.output))
+
+
+if __name__ == "__main__":
+    main()

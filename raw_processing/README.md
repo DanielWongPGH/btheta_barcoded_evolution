@@ -74,6 +74,10 @@ parsing and fuzzy junction-merging behavior.
 
 1. Configure the pipeline and update `clone_barcode.tsv` if necessary.
 
+   Set `raw_processing.isolates.execution.scheduler` to `slurm` for a cluster
+   or `local` for sequential execution. Set `load_modules: false` when the
+   configured Python, Java, and breseq executables are already on `PATH`.
+
    ```bash
    cd raw_processing/process_isolates
    # Edit ../../project_config.yaml.
@@ -92,10 +96,8 @@ parsing and fuzzy junction-merging behavior.
    bash step0_trim_adapters.sh ../../project_config.yaml /path/to/untrimmed_fastq
    ```
 
-   This creates `samples_in_dir.txt` and submits one trimming job per sample.
+   This creates `samples_in_dir.txt` and runs one trimming job per sample.
    The trimmed FASTQs are written beneath the configured `trimmed` output.
-   Run from this directory because the sample parser reads `clone_barcode.tsv`
-   relative to the working directory.
 
 3. Wait for every trimmed read pair, then run breseq.
 
@@ -104,35 +106,47 @@ parsing and fuzzy junction-merging behavior.
    ```
 
    Each sample produces a breseq result directory containing, among other
-   files, `output/evidence/evidence.gd` and `data/reference.bam`.
+   files, `output/output.gd` and `output/evidence/evidence.gd`.
 
-4. Optionally run the auxiliary Delly structural-variant workflow after the
-   BAMs exist.
+4. Export the annotated isolate calls required by the canonical mutation
+   analysis.
 
    ```bash
-   bash call_structural_variants_with_delly.sh ../../project_config.yaml samples_in_dir.txt
+   bash step1b_export_annotated_gds.sh ../../project_config.yaml
    ```
 
-   Delly outputs are not an identified prerequisite of the current manuscript
-   notebooks; those notebooks use breseq evidence, including JC records. Treat
-   this as an optional parallel analysis unless its downstream role is restored.
+   The exporter copies each clone's breseq `output/output.gd` into the
+   configured isolate `annotated_gd` directory with the normalized filename
+   `m{mouse}_day{day}_clone{clone}_annotated.gd`.
 
-5. Export the clone map, breseq GD/evidence files, and required BAM/coverage
-   products into the local paths configured under `data/isolate_wgs/` and
-   `data/BAM_coverages/`.
+5. Export the clone map and annotated isolate GD directory into the local
+   paths configured under `data/isolate_wgs/`. Populate
+   `data/reference_genome/day0_gd_annotated` from the metagenomics Step 1b
+   output described below.
 
-6. Run `notebooks/4_isolate_sequencing.ipynb` to parse isolate mutations and
-   generate the mutation/driver pickles and supplementary tables. Notebooks
-   `4a_isolate_seq_plotting.ipynb` and `4c_BAM_coverages.ipynb` consume those
-   processed calls and coverage products for the manuscript figures.
+6. Identify isolate mutations and candidate drivers.
 
-### Unresolved isolate handoff
+   ```bash
+   python step2_identify_isolate_mutations.py
+   ```
 
-The curated raw scripts end at ordinary breseq outputs. The exact historical
-step that annotated or renamed GD files and copied them into the local
-`data/isolate_wgs/` layout was not found. Until that export is scripted, compare
-the expected filenames in notebook `4` with the generated per-sample breseq
-directories before replacing the checked-in data.
+   By default, this reads annotated isolate GDs from
+   `data/isolate_wgs/E1_clones_gd_annotated`, day-zero GDs from
+   `data/reference_genome/day0_gd_annotated`, and the clone/barcode maps from
+   the configured pickle directory. The two GD locations can be overridden
+   with `--isolate-gd-dir` and `--day0-gd-dir`.
+
+   It writes `preexisting_variants.pkl`, `SV_pvals.pkl`,
+   `all_mutations_in_isolates.pkl`, `all_vivo_drivers.pkl`, and Tables S1–S2.
+   A candidate driver must be detected in more than 50% of all isolates
+   assigned to that barcode; timepoint-specific majorities do not qualify.
+   The retained JC-pairing rule permits one junction to participate in more
+   than one candidate pair; this historical behavior should be reviewed before
+   changing the structural-variant classification.
+
+7. Run `notebooks/4_isolate_sequencing.ipynb` for downstream summaries.
+   Notebooks `4a_isolate_seq_plotting.ipynb` and `4c_BAM_coverages.ipynb`
+   consume the processed calls and coverage products for manuscript figures.
 
 ### Isolate scripts
 
@@ -140,7 +154,8 @@ directories before replacing the checked-in data.
 |---|---|
 | `step0_trim_adapters.sh`, `step0_trim_adapters.sbatch` | Discover samples and trim paired reads with Trimmomatic |
 | `step1_breseq_genomes.sh`, `step1_breseq_genomes.sbatch` | Submit and run per-isolate breseq calls |
-| `call_structural_variants_with_delly.sh`, `call_structural_variants_with_delly.sbatch` | Optional Delly structural-variant calls |
+| `step1b_export_annotated_gds.sh` | Export normalized annotated isolate GD files for the canonical analysis |
+| `step2_identify_isolate_mutations.py` | Filter isolate calls, identify candidate drivers, and write Tables S1–S2 |
 | `parse_fastq_directory.py` | Build the sample list from FASTQs and `clone_barcode.tsv` |
 | `generate_fastq_stems.sh` | Populate isolate manifest directories from `project_config.yaml` |
 | `../parse_config.sh` | Shared loader for the isolate YAML subsection |
@@ -189,6 +204,19 @@ subset; retained examples include `non_stragglers`, `stragglers`, and
    ```bash
    bash step1_breseq_genomes.sh ../../project_config.yaml POPULATION SEQUENCE_TYPE
    ```
+
+   After all day-zero breseq jobs have completed, collect their annotated
+   mutation calls:
+
+   ```bash
+   bash step1b_collect_day0_annotated_gds.sh ../../project_config.yaml
+   ```
+
+   This selects `Timepoint == 0` samples from `population_samples.csv` and
+   copies each `output/output.gd` into the configured
+   `output_dirs.day0_annotated_gd` directory. Sync that directory to
+   `data/reference_genome/day0_gd_annotated` before running the isolate Step 2
+   script locally, or pass its remote/mounted path with `--day0-gd-dir`.
 
 3. Build the union of candidate junction evidence for each population.
 
@@ -245,6 +273,27 @@ subset; retained examples include `non_stragglers`, `stragglers`, and
    - BAM-derived coverage summaries used by `4c` live under
      `data/BAM_coverages/`.
 
+8. Once the mutation and coverage files are available locally, build the
+   compact indexes used by the in-vivo metagenomics notebook:
+
+   ```bash
+   python process_metagenomics/step6_process_invivo_metagenomics.py
+   ```
+
+   This writes `metagenomic_mutation_timecourses.pkl` and
+   `metagenomic_coverage_timecourses.pkl` beneath the configured
+   `local.pickles` directory.
+
+9. Process annotated in-vitro GD files when the external `S1_annotated`–
+   `S6_annotated` inputs have been made available at `local.invitro_gd`:
+
+   ```bash
+   python process_metagenomics/step7_process_invitro_metagenomics.py
+   ```
+
+   It produces the in-vitro mutation table and an index consumed by the
+   retained step-7 diagnostics notebook.
+
 ### Unresolved metagenomic handoff
 
 The exact historical copying, decompression, and renaming commands between the
@@ -263,8 +312,6 @@ replacing the checked-in local files.
 - If isolate FASTQs are not discovered, check the expected
   `{sample}_R1_001.fastq.gz`/`{sample}_R2_001.fastq.gz` naming and
   `clone_barcode.tsv` entries.
-- If Delly cannot find its reference, confirm that the preceding breseq job
-  completed and produced `data/reference.fasta` and `data/reference.bam`.
 - If a downstream stage sees missing files, first check whether the preceding
   SLURM jobs have actually completed; the orchestration commands are
   asynchronous.
@@ -272,8 +319,8 @@ replacing the checked-in local files.
 ## Software citations
 
 The processing workflows use Bartender (Zhao et al., 2018), breseq (Deatherage
-and Barrick, 2014), Delly (Rausch et al., 2012), and Trimmomatic (Bolger et al.,
-2014). Cite the tools used in a particular rerun and record their exact
+and Barrick, 2014), and Trimmomatic (Bolger et al., 2014). Cite the tools used
+in a particular rerun and record their exact
 versions with the output.
 
 ## Snapshot classification
@@ -285,7 +332,6 @@ versions with the output.
 | top-level `bartender-1.1-master/` and the two pipeline copies | three identical vendor trees | not copied; install Bartender 1.1 externally and record its source/version |
 | `process_isolates/` | newest isolate workflow | trimming and breseq stages ported |
 | `isolates_scripts/` | older duplicate of isolate workflow | redundant |
-| isolate Delly scripts | auxiliary SV workflow with no identified downstream manuscript handoff | ported with the isolate workflow but marked auxiliary |
 | `process_metagenomics/` | newest metagenomic workflow | essential processing and sample metadata ported |
 | `metagenomics_scripts/` | mostly byte-identical predecessors | redundant |
 | `Kim_todo_submissions/cluster_scripts/` | still earlier mixed isolate/metagenomic generation | obsolete/redundant |

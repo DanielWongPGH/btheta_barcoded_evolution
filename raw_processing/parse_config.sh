@@ -90,12 +90,15 @@ if [[ "$PIPELINE" == "isolates" ]]; then
     export OUTPUT_DIR="$(config_value '.output_dir')"
     export TRIMMED_DIR="${OUTPUT_DIR}/trimmed"
     export BRESEQ_DIR="${OUTPUT_DIR}/breseq"
-    export DELLY_DIR="${OUTPUT_DIR}/delly"
+    export ANNOTATED_GD_DIR="${OUTPUT_DIR}/annotated_gd"
     export SLURM_LOG_DIR="${OUTPUT_DIR}/slurm"
+    export EXECUTION_SCHEDULER="$(config_value '.execution.scheduler')"
+    export LOAD_MODULES="$(config_value '.execution.load_modules')"
+    export PYTHON_BIN="$(config_value '.execution.python')"
+    export JAVA_BIN="$(config_value '.execution.java')"
     export TRIMMOMATIC_JAR="$(config_value '.trimmomatic.jar')"
     export TRIMMOMATIC_ADAPTERS="$(config_value '.trimmomatic.adapters')"
     export BRESEQ_PATH="$(config_value '.breseq.path')"
-    export DELLY_SIMG="$(config_value '.delly.singularity_image')"
     export REFERENCE_GBK="$(config_value '.reference.genbank')"
     export SLURM_PARTITION="$(config_value '.slurm.partition')"
     export SLURM_TRIM_TIME="$(config_value '.slurm.trim.time')"
@@ -103,8 +106,7 @@ if [[ "$PIPELINE" == "isolates" ]]; then
     export SLURM_TRIM_CPUS="$(config_value '.slurm.trim.cpus')"
     export SLURM_BRESEQ_TIME="$(config_value '.slurm.breseq.time')"
     export SLURM_BRESEQ_MEM="$(config_value '.slurm.breseq.mem')"
-    export SLURM_DELLY_TIME="$(config_value '.slurm.delly.time')"
-    export SLURM_DELLY_MEM="$(config_value '.slurm.delly.mem')"
+    export MODULE_PYTHON="$(config_value '.modules.python')"
     export MODULE_R="$(config_value '.modules.R')"
     export MODULE_BIOLOGY="$(config_value '.modules.biology')"
     export MODULE_SAMTOOLS="$(config_value '.modules.samtools')"
@@ -120,10 +122,17 @@ if [[ "$PIPELINE" == "isolates" ]]; then
     export BRESEQ_POLY_SURROUND_HOMOPOLY="$(config_value '.breseq_params.polymorphism_reject_surrounding_homopolymer_length')"
     export BRESEQ_POLY_SCORE_CUTOFF="$(config_value '.breseq_params.polymorphism_score_cutoff')"
     export BRESEQ_POLY_MIN_COV_STRAND="$(config_value '.breseq_params.polymorphism_minimum_variant_coverage_each_strand')"
-    export DELLY_MIN_MAPQ="$(config_value '.delly_params.min_mapping_quality')"
 
     create_output_dirs() {
-        mkdir -p "$TRIMMED_DIR" "$BRESEQ_DIR" "$DELLY_DIR" "$SLURM_LOG_DIR"
+        mkdir -p "$TRIMMED_DIR" "$BRESEQ_DIR" "$ANNOTATED_GD_DIR" "$SLURM_LOG_DIR"
+    }
+
+    load_isolate_modules() {
+        [[ "$LOAD_MODULES" == "true" ]] || return 0
+        local module
+        for module in "$@"; do
+            [[ -n "$module" && "$module" != "null" ]] && ml "$module"
+        done
     }
 fi
 
@@ -134,6 +143,7 @@ if [[ "$PIPELINE" == "metagenomics" ]]; then
     export PYTHON3_BIN="$(config_value '.execution.python')"
     export BRESEQ_DIR="${SCRATCH_DIR}/$(config_value '.output_dirs.breseq')"
     export REBRESEQ_DIR="${SCRATCH_DIR}/$(config_value '.output_dirs.rebreseq')"
+    export DAY0_ANNOTATED_GD_DIR="${SCRATCH_DIR}/$(config_value '.output_dirs.day0_annotated_gd')"
     export TIMECOURSE_DIR="${SCRATCH_DIR}/$(config_value '.output_dirs.timecourse')"
     export SLURM_LOG_DIR="${SCRATCH_DIR}/$(config_value '.output_dirs.slurm_logs')"
     export PYTHON2_BIN="$(config_value '.python2.executable')"
@@ -177,7 +187,8 @@ if [[ "$PIPELINE" == "metagenomics" ]]; then
     export GENOME_LENGTH="$(config_value '.timecourse_params.genome_length')"
 
     create_output_dirs() {
-        mkdir -p "$BRESEQ_DIR" "$REBRESEQ_DIR" "$TIMECOURSE_DIR" "$SLURM_LOG_DIR"
+        mkdir -p "$BRESEQ_DIR" "$REBRESEQ_DIR" "$DAY0_ANNOTATED_GD_DIR" \
+            "$TIMECOURSE_DIR" "$SLURM_LOG_DIR"
     }
 
     load_common_modules() {

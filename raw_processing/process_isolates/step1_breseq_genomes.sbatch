@@ -19,6 +19,8 @@ sample_name=$3
 # Load configuration
 RAW_PROCESSING_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 source "${RAW_PROCESSING_DIR}/parse_config.sh" "$config_file" isolates
+load_isolate_modules "$MODULE_BIOLOGY" "$MODULE_SAMTOOLS" "$MODULE_SYSTEM" \
+    "$MODULE_NCURSES" "$MODULE_BOWTIE2" "$MODULE_NUMPY"
 
 echo "Processing sample: $sample_name"
 echo "Input dir: $input_dir"
@@ -26,12 +28,9 @@ echo "Output dir: ${BRESEQ_DIR}/${sample_name}"
 echo "Reference: $REFERENCE_GBK"
 
 # Collect all FASTQ files for this sample
-FASTQ_FILES=""
-for f in $(ls ${input_dir}/${sample_name}*.fastq.gz 2>/dev/null); do
-    FASTQ_FILES="${FASTQ_FILES} ${f}"
-done
+FASTQ_FILES=("${input_dir}/${sample_name}_R1_001.fastq.gz" "${input_dir}/${sample_name}_R2_001.fastq.gz")
 
-if [[ -z "$FASTQ_FILES" ]]; then
+if [[ ! -f "${FASTQ_FILES[0]}" || ! -f "${FASTQ_FILES[1]}" ]]; then
     echo "ERROR: No FASTQ files found for $sample_name in $input_dir"
     exit 1
 fi
@@ -47,7 +46,7 @@ ${BRESEQ_PATH} \
     --polymorphism-minimum-variant-coverage-each-strand ${BRESEQ_POLY_MIN_COV_STRAND} \
     -o "${BRESEQ_DIR}/${sample_name}" \
     -r "${REFERENCE_GBK}" \
-    ${FASTQ_FILES} \
+    "${FASTQ_FILES[@]}" \
     > "${BRESEQ_DIR}/${sample_name}.out" \
     2> "${BRESEQ_DIR}/${sample_name}.err"
 

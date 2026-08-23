@@ -4,6 +4,7 @@ Code, processed data, and analysis notebooks associated for the paper: "High-res
 
 Associated raw barcode, isolate whole genome, and population/metagenomic sequencing data is deposited on the SRA, BioProject accession [PRJNA1111532](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA1111532).
 
+August 23, 2026: clean up of raw_processing for portability is under construction.
 
 ## Repository structure
 

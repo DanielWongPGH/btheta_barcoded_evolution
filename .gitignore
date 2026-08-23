@@ -1,7 +1,5 @@
 .DS_Store
 .venv/
-data/*
-!data/data.zip
 figures/*
 notebooks/*
 notebooks_old/*
@@ -11,8 +9,21 @@ papers/*
 remote_snapshot/
 **/__pycache__/
 
+data/BAM_coverages
+data/barseq
+data/breseq_timecourse_files
+data/tables_for_publication
+data/SRA
+data/isolate_wgs
+data/mgx_seq
+data/pickled
+data/rebarseq
+data/rebarseq_csb
+data.zip
+data/reference_genome/
 !data/reference_genome/BtVPI_plausible_inverted_repeats.txt
 !methods
+
 !notebooks/0a_barcode_sorting.ipynb
 !notebooks/0b_barcode_sorting_plots.ipynb
 !notebooks/1_monocolonization_muller.ipynb

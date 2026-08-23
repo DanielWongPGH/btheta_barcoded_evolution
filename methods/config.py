@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parents[2]
+project_root = Path(__file__).resolve().parents[1]
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
@@ -20,7 +20,7 @@ figure_dir = figures_dir
 tables_dir = local_paths['tables']
 papers_dir = local_paths['papers']
 provenance_dir = local_paths['provenance']
-remote_processing_dir = local_paths['remote_processing']
+raw_processing_dir = local_paths['raw_processing']
 plot_dir = local_paths['legacy_plots']
 si_dir = local_paths['si_figures']
 
@@ -45,9 +45,3 @@ mpl_configs = {
     'axes.titlesize': 10,
     'legend.fontsize': 6,
     'axes.labelpad': 0}
-
-KELLY_COLORS = ['#FFB300', '#803E75', '#FF6800', '#A6BDD7',
-                '#C10020', '#CEA262', '#817066', '#007D34',
-                '#F6768E', '#00538A', '#FF7A5C', '#53377A',
-                '#FF8E00', '#B32851', '#F4C800', '#7F180D',
-                '#93AA00', '#593315', '#F13A13', '#232C16']

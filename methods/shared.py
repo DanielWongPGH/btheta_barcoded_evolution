@@ -1,11 +1,11 @@
 import pickle
 import numpy as np
-import sys; sys.path.insert(0, '../../')
 from methods.config import *
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import scipy
 import methods.sim_barcodes as sim
+import methods.plot_utils as plot_utils
 
 
 # freq_array = np.einsum('ij, i->ij', read_array, read_array.sum(axis=1)**-1.)
@@ -45,7 +45,7 @@ with open(f'{pickled_dir}/well_to_medium_map.pkl', 'rb') as f:
 with open(f'{pickled_dir}/col_id_map.pkl', 'rb') as f:
     col_id_map = pickle.load(f)
 
-reseq_depths[:, 1] = reseq_depths[:, 1] * 0.3
+# reseq_depths[:, 1] = reseq_depths[:, 1] * 0.3
 
 barcode_arrays = {'vivo': (vivo_array, vivo_depths),
                   'vitro': (vitro_array, vitro_depths),
@@ -164,52 +164,12 @@ POLYSACCHARIDES = ['avantafiber', 'bioecolians', 'bimuno', 'cravingzgone', 'fibe
 ordered_media = MONOSACCHARIDES + DISACCHARIDES + OLIGOSACCHARIDES + POLYSACCHARIDES
 
 VITRO_MEDIA_COLORS = {'glucose': 'red', 'lactose': 'blue', 'vitafiber':'green'} \
-                | {medium:KELLY_COLORS[m%len(KELLY_COLORS)] for m, medium in enumerate(ordered_media)  if medium not in ['glucose', 'lactose', 'vitafiber']}
+                | {medium:plot_utils.KELLY_COLORS[m%len(plot_utils.KELLY_COLORS)] for m, medium in enumerate(ordered_media)  if medium not in ['glucose', 'lactose', 'vitafiber']}
 
 
 medium_labels = {medium:medium for medium in ordered_media}
 medium_labels['iron'] = 'gluc. + iron'
 
-
-gene_coords_map = {}
-gene_description = {}
-gene_starts, gene_stops = [], []
-gene_lst = []
-with open(f'{data_dir}/reference_genome/BtVPI.ptt', 'r') as f:
-    for _ in range(4):
-        header = next(f)
-    for line in f:
-        line_items = line.strip('\n').split('\t')
-        loc_str, strand = line_items[0], line_items[1]
-        gene, description = line_items[5], line_items[-1]
-
-        start, stop = [int(e) for e in loc_str.split('..')]
-        gene_coords_map[gene] = (start, stop, strand)
-        gene_description[gene] = description
-        gene_starts.append(start)
-        gene_stops.append(stop)
-        gene_lst.append(gene)
-gene_starts, gene_stops = np.array(gene_starts), np.array(gene_stops)
-genes = np.array(gene_lst)
-
-def find_gene_from_position(position):
-    jc_start = position >= gene_starts
-    jc_stop = position <= gene_stops
-
-    if (jc_start * jc_stop).sum() > 0:
-        return genes[ jc_start * jc_stop ]
-    else: # intergenic
-        if np.any(~jc_start) and np.any(~jc_stop):
-            left_gene = genes[~jc_stop][-1]
-            right_gene = genes[~jc_start][0]
-        elif np.any(~jc_start):
-            right_gene = genes[~jc_start][0]
-            left_gene = genes[-1]
-        elif np.any(~jc_stop):
-            right_gene = genes[~jc_stop][-1]
-            left_gene = genes[0]
-
-        return [f'{left_gene}-{right_gene}']
 
 ##########################################
 ### BARCODE FREQ CALCULATIONS  ####
@@ -246,13 +206,6 @@ def maxmin_freqs(freqs0, depth0, freqs1, depth1):
     maxmin_f1 = np.max([freqs1, min_f1], axis=0)
 
     return maxmin_f0, maxmin_f1
-
-def get_freqs(expt, mouse, day):
-    row_id = vivo_row_ids[(expt, mouse, day)]
-    freqs = freq_array[row_id]
-    depth = read_array[row_id].sum()
-    effective_depth = Deff_array[row_id]
-    return freqs, depth
 
 def cage_avg_freqs(expt, mice, day):
     weighted_read_array = np.zeros(vivo_array.shape[-1])
@@ -661,18 +614,6 @@ def migration_inference_by_pdetected(donor_data, recip_data0, recip_data1, valid
 
     return m, uncertainty, density, errs, bins, n_barcodes_per_bin
 
-# functions for weighted average rate of transmission
-def coarse_grain(sorted_freqs, max_groups=3, min_freq=10**-2):
-    groupings = [[] for i in range(max_groups)]
-    current_freqs = [sorted_freqs[group].sum() for group in groupings]
-
-    for i, f in enumerate(sorted_freqs):
-        z = np.argmin(current_freqs)
-        groupings[z].append(i)
-        current_freqs = [sorted_freqs[group].sum() for group in groupings]
-
-    return groupings, np.array(current_freqs)
-
 def migration_inference_by_ratio(donor_data, recip_data0, recip_data1, valid_bool, recip_floor=0, max_groups=2, min_freq=10**-2):
     donor_freqs, donor_depth = donor_data
     recip_freqs0, recip_depth0 = recip_data0
@@ -841,7 +782,6 @@ def recipient_trajectory_model(donor_trajectories, recip_init, donor_transmissio
     # this model assumes that the donors behave essentially identically, and we can ignore drift
 
     donor_days = donor_trajectories[0][0]
-    print(len(donor_trajectories))    
     assert np.all(np.diff(donor_days) == 1)
     for other_donor_days, other_donor_freqs in donor_trajectories[1:]:
         assert np.all(donor_days == other_donor_days)
@@ -947,81 +887,6 @@ def plot_barcode_trajectories(ax, barcode, expt, donor_mice, recip_mice, transmi
         ax.plot(recip_days[mask], recip_freqs[mask] + 1e-7, color=color_dict[recip_mouse], marker='.', markersize=5, lw=1.5, linestyle='solid')
         # ax.plot(recip_days, recip_freqs + 1e-7, color=color_dict[recip_mouse], marker='.', markersize=5, lw=1.5, linestyle='solid')
 
-def plot_barcode_trajectories_and_save(ax, barcode, expt, donor_mice, recip_mice, transmission_dict, color_dict, init_day,
-                               plot_other_donors=False, save_seq=False, recip_theory_colors=None):
-    barcode_index = np.where(barcodes == barcode)[0][0]
-
-    donor_days_and_rows = {donor_mouse:[*library_meta[expt][donor_mouse]] for donor_mouse in donor_mice}
-    donor_trajectories = {donor_mouse:[days, freq_array[rows][:, barcode_index], Deff_array[rows]] for donor_mouse, [days, rows, cecum] in donor_days_and_rows.items()}
-
-    donor_interpolated_trajectories = {donor_mouse:[*calc_interpolated_freqs((days, freqs), remove_zeros=True, Deff_array=Deff)] for donor_mouse, (days, freqs, Deff) in donor_trajectories.items()}
-    donor_init_freqs = sorted([(donor_mouse,freqs[days == init_day]) for donor_mouse, [days, freqs] in donor_interpolated_trajectories.items()], key = lambda x: x[1], reverse=True)
-    reference_donor = donor_init_freqs[0][0] #mouse with highest freq at init day
-    donor_transmission = transmission_dict[reference_donor]
-
-    ref_donor_days, reference_freqs = donor_interpolated_trajectories[ reference_donor ]
-        
-    recip_init = []
-    recip_transmission = []
-    if len(donor_init_freqs) > 1:
-        for donor, init_freq in donor_init_freqs[1:]:
-            recip_init.append(init_freq)
-            recip_transmission.append(transmission_dict[donor])
-    recip_init.extend( [0]*len(recip_mice) ) #assume 0 freq in recipient
-    recip_transmission.extend( [transmission_dict[m] for m in recip_mice] )
-      
-    recip_days, recip_freqs = trajectory_inference((ref_donor_days[ref_donor_days >= init_day], reference_freqs[ref_donor_days >= init_day]), recip_init, donor_transmission, recip_transmission)
-    recip_days, recip_freqs_transient = trajectory_inference((ref_donor_days[ref_donor_days >= init_day], reference_freqs[ref_donor_days >= init_day]), recip_init, donor_transmission, recip_transmission, no_engraftment=True)
-    # print('Recip engrafted:', recip_freqs,)
-    # print('Recip transient:', recip_freqs_transient)
-
-    #### PLOT ###
-    if save_seq != False:
-        save_seq.savefig(f'{plot_dir}/E2_traj_presentation_v0.pdf', dpi=300, bbox_inches='tight', transparent=True)
-    
-    ax.plot(donor_trajectories[reference_donor][0], donor_trajectories[reference_donor][1] + 1e-7, color=color_dict[reference_donor], alpha=1, lw=3)
-    if plot_other_donors:
-        for (donor, init_freq) in donor_init_freqs[1:]:
-            ax.plot(donor_trajectories[donor][0], donor_trajectories[donor][1] + 1e-7, color=color_dict[donor_init_freqs[1][0]], alpha=1, lw=3, zorder=0)
-    if save_seq != False:
-        save_seq.savefig(f'{plot_dir}/E2_traj_presentation_v1.pdf', dpi=300, bbox_inches='tight', transparent=True)
-
-
-    ax.plot( recip_days[1:], recip_freqs_transient[1][1:], color='grey', alpha=1, linestyle='dashed', lw=1.5)
-    if save_seq != False:
-        save_seq.savefig(f'{plot_dir}/E2_traj_presentation_v2.pdf', dpi=300, bbox_inches='tight', transparent=True)
-
-    ax.plot( recip_days[1:], recip_freqs[1][1:], color='black', alpha=1, linestyle='dashed', lw=1.5)
-    if save_seq != False:
-        save_seq.savefig(f'{plot_dir}/E2_traj_presentation_v3.pdf', dpi=300, bbox_inches='tight', transparent=True)
-
-
-    transient_expectation = {k:{day: recip_freqs_transient[1][m] for m, day in enumerate(recip_days)} for k in range(len(recip_mice))}
-    # transient_expectation[0] = 0
-
-    # recip_mice = [m for m in [4,5,6,7] if m != donor_mouse]
-    reps = []
-    for m, recip_mouse in enumerate(recip_mice):
-        recip_days, recip_rows = library_meta[expt][recip_mouse][:2]
-        recip_reads = np.copy(read_array[recip_rows])
-        recip_freqs = calc_freqs(recip_reads)
-        # recip_freqs[recip_freqs == 0] = 1e-7
-
-        recip_freqs = freq_array[recip_rows][:, barcode_index]
-        recip_floor = Deff_array[recip_rows]**-1.
-
-        mask = []
-        for r, (day, floor) in enumerate(zip(recip_days, recip_floor)):
-            if recip_freqs[r] > 0 and day >= init_day:
-                mask.append(True)
-            elif day in transient_expectation[m] and transient_expectation[m][day] > floor:
-                mask.append(True)
-            else:
-                mask.append(False)
-
-        ax.plot(recip_days[mask], recip_freqs[mask] + 1e-7, color=color_dict[recip_mouse], marker='.', markersize=5, lw=1.5, linestyle='solid')
-        # ax.plot(recip_days, recip_freqs + 1e-7, color=color_dict[recip_mouse], marker='.', markersize=5, lw=1.5, linestyle='solid')
-    
 def calc_integrated_ratio(donor_freqs, recip_freqs, floor=10**-3):
         ratio = np.ma.masked_array(recip_freqs / donor_freqs, np.full(donor_freqs.shape[0], False))
         ratio[ ratio == 0 ] = floor
@@ -1038,38 +903,6 @@ def calc_integrated_ratio(donor_freqs, recip_freqs, floor=10**-3):
 
 ### in vitro
 
-medium_to_well_map = {'glucose':[('p1_A1', 'V1'), ('p1_B1', 'V4'), ('p1_C1', 'V1'), ('p1_D1', 'V4')],
-     'stachyose':[('p1_A2', 'V2'), ('p1_B2', 'V5'), ('p1_C2', 'V2'), ('p1_D2', 'V5')],
-     'sucrose':[('p1_A3', 'V3'), ('p1_B3', 'V6'), ('p1_C3', 'V3'), ('p1_D3', 'V6')],
-     'fructose':[('p1_A5', 'V1'), ('p1_B5', 'V4'), ('p1_C5', 'V1'), ('p1_D5', 'V4')],
-     'maltose':[('p1_A6', 'V2'), ('p1_B6', 'V5'), ('p1_C6', 'V2'), ('p1_D6', 'V5')],
-     'trehalose':[('p1_A7', 'V3'), ('p1_B7', 'V6'), ('p1_C7', 'V3'), ('p1_D7', 'V6')],
-     'melibiose':[('p1_A9', 'V1'), ('p1_B9', 'V4'), ('p1_C9', 'V1'), ('p1_D9', 'V4')],
-     'iron':[('p1_A10', 'V2'), ('p1_B10', 'V5'), ('p1_C10', 'V2'), ('p1_D10', 'V5')],
-     'vitafiber':[('p1_A11', 'V3'), ('p1_B11', 'V6'), ('p1_C11', 'V3'), ('p1_D11', 'V6')],
-     'raffinose':[('p1_E1', 'V1'), ('p1_F1', 'V4'), ('p1_G1', 'V1'), ('p1_H1', 'V4')],
-     'lactose':[('p1_E2', 'V2'), ('p1_F2', 'V5'), ('p1_G2', 'V2'), ('p1_H2', 'V5')],
-     'galactose':[('p1_E5', 'V1'), ('p1_F5', 'V4'), ('p1_G5', 'V1'), ('p1_H5', 'V4')],
-     
-     'UMich-01':[('p2_A1', 'V1'), ('p2_B1', 'V4'), ('p2_C1', 'V1'), ('p2_D1', 'V4')],
-     'bioecolians':[('p2_A2', 'V2'), ('p2_B2', 'V5'), ('p2_C2', 'V2'), ('p2_D2', 'V5')],
-     'prebiotin':[('p2_A3', 'V3'), ('p2_B3', 'V6'), ('p2_C3', 'V3'), ('p2_D3', 'V6')],
-     'maltodextrin':[('p2_A5', 'V1'), ('p2_B5', 'V4'), ('p2_C5', 'V1'), ('p2_D5', 'V4')],
-     'promitor':[('p2_A6', 'V2'), ('p2_B6', 'V5'), ('p2_C6', 'V2'), ('p2_D6', 'V5')],
-     'vitagos':[('p2_A7', 'V3'), ('p2_B7', 'V6'), ('p2_C7', 'V3'), ('p2_D7', 'V6')],
-     'precticx':[('p2_A9', 'V1'), ('p2_B9', 'V4'), ('p2_C9', 'V1'), ('p2_D9', 'V4')],
-     'LC742':[('p2_A10', 'V2'), ('p2_B10', 'V5'), ('p2_C10', 'V2'), ('p2_D10', 'V5')],
-     'avantafiber':[('p2_A11', 'V3'), ('p2_B11', 'V6'), ('p2_C11', 'V3'), ('p2_D11', 'V6')],
-
-     'UMich-02b':[('p2_E1', 'V1'), ('p2_F1', 'V4'), ('p2_G1', 'V1'), ('p2_H1', 'V4')],
-     'yacontrol':[('p2_E2', 'V2'), ('p2_F2', 'V5'), ('p2_G2', 'V2'), ('p2_H2', 'V5')],
-     'fibersol':[('p2_E5', 'V1'), ('p2_F5', 'V4'), ('p2_G5', 'V1'), ('p2_H5', 'V4')],
-     'cravingzgone':[('p2_E6', 'V2'), ('p2_F6', 'V5'), ('p2_G6', 'V2'), ('p2_H6', 'V5')],
-     'bimuno':[('p2_E7', 'V3'), ('p2_F7', 'V6'), ('p2_G7', 'V3'), ('p2_H7', 'V6')],
-     'sunfiber':[('p2_E9', 'V1'), ('p2_F9', 'V4'), ('p2_G9', 'V1'), ('p2_H9', 'V4')],
-     'ISOT 160120':[('p2_E10', 'V2'), ('p2_F10', 'V5'), ('p2_G10', 'V2'), ('p2_H10', 'V5')],
-     'wako':[('p2_E11', 'V3'), ('p2_F11', 'V6'), ('p2_G11', 'V3'), ('p2_H11', 'V6')]
-     }
 well_to_medium_map = {}
 well_to_inoc_map = {}
 for medium, wells in medium_to_well_map.items():

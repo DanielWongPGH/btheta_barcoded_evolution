@@ -1,8 +1,6 @@
 import pickle
 import numpy as np
-import sys; sys.path.insert(0, '../../')
 from methods.config import *
-import methods.shared as shared
 import Bio.SeqIO as SeqIO
 from Bio.Seq import Seq
 import numpy as np
@@ -18,7 +16,20 @@ with open(f'{pickled_dir}/gene_to_PUL_map.pkl', 'rb') as f:
 genome = Seq(SeqIO.read(f'{data_dir}/reference_genome/BtVPI.fasta', 'fasta').seq)
 GENOME_LENGTH = len(genome)
 
-gene_array = np.array(sorted([[gene, start, stop] for gene, (start, stop, strand) in shared.gene_coords_map.items()]))
+gene_coords_map = {}
+gene_description = {}
+with open(f'{data_dir}/reference_genome/BtVPI.ptt', 'r') as f:
+    for _ in range(4):
+        next(f)
+    for line in f:
+        line_items = line.rstrip('\n').split('\t')
+        start, stop = [int(value) for value in line_items[0].split('..')]
+        gene_coords_map[line_items[5]] = (start, stop, line_items[1])
+        gene_description[line_items[5]] = line_items[-1]
+
+gene_array = np.array(sorted([
+    [gene, start, stop] for gene, (start, stop, strand) in gene_coords_map.items()
+]))
 def find_gene_from_position(pos):
     gene_starts = gene_array[:,1].astype(int)
     gene_stops = gene_array[:,2].astype(int)
@@ -33,7 +44,7 @@ def find_gene_from_position(pos):
     else:
         upstream_gene = gene_names[start_bool][-1]
         downstream_gene = gene_names[stop_bool][0]
-        return f'{upstream_gene}/{downstream_gene}'
+        return f'{upstream_gene}-{downstream_gene}'
     
 def get_variants_from_annotated_gd_file(gd_file, freq=False, track_RA=False):
     clone_evidence = {'INS':[], 'SNP':[], 'DEL':[], 'SUB':[], 'JC':[], 'MC':[], 'RA':[]}
@@ -122,7 +133,7 @@ def get_variants_from_annotated_gd_file(gd_file, freq=False, track_RA=False):
                                             'mutation_category':variant_type, 'mutation_description':mutation_description}
 
                     if freq:
-                        frequency = np.float(mutation_dict['frequency'])
+                        frequency = float(mutation_dict['frequency'])
                         pruned_mutation_dict['frequency'] = frequency
 
                     clone_evidence[variant_type].append( (position, variant_type, pruned_mutation_dict) )
@@ -132,15 +143,15 @@ def get_variants_from_annotated_gd_file(gd_file, freq=False, track_RA=False):
 
             if variant_type == 'MC':
                 start, end = int(line_items[4]), int(line_items[5])
-                gene1 = shared.find_gene_from_position(start)[0]  # first gene
-                gene2 = shared.find_gene_from_position(end)[0]  # second gene
+                gene1 = find_gene_from_position(start)  # first gene
+                gene2 = find_gene_from_position(end)  # second gene
 
                 clone_evidence['MC'].append( ((start, end), (gene1, gene2)) )
 
             if variant_type == 'JC':
                 start, end = int(line_items[4]), int(line_items[7])
-                gene1 = shared.find_gene_from_position(start)[0] # first gene
-                gene2 = shared.find_gene_from_position(end)[0] # second gene
+                gene1 = find_gene_from_position(start) # first gene
+                gene2 = find_gene_from_position(end) # second gene
                 orientations = (int(line_items[5]), int(line_items[8]))
 
                 evidence_meta = {e.split('=')[0]:e.split('=')[1] for e in line_items[11:]}
@@ -157,7 +168,7 @@ def get_variants_from_annotated_gd_file(gd_file, freq=False, track_RA=False):
             if variant_type == 'RA' and track_RA:
                 position = int(line_items[4])
                 evidence_index = int(line_items[5])
-                gene = shared.find_gene_from_position(position)[0] # first gene
+                gene = find_gene_from_position(position) # first gene
                 evidence_meta = {e.split('=')[0]:e.split('=')[1] for e in line_items[8:]}
                 freq = float(evidence_meta['polymorphism_frequency'])
                 RA_coverage = np.sum(int(e) for e in evidence_meta['new_cov'].split('/'))
@@ -189,11 +200,11 @@ def get_variants_from_annotated_gd_file(gd_file, freq=False, track_RA=False):
                     gene = find_gene_from_position(position)
                     if '/' in gene:
                         gene1, gene2 = gene.split('/')
-                        gene1_description = shared.gene_description[gene1]
-                        gene2_description = shared.gene_description[gene2]
+                        gene1_description = gene_description[gene1]
+                        gene2_description = gene_description[gene2]
 
-                        gene1_strand = shared.gene_coords_map[gene1][2]
-                        gene2_strand = shared.gene_coords_map[gene2][2]
+                        gene1_strand = gene_coords_map[gene1][2]
+                        gene2_strand = gene_coords_map[gene2][2]
 
                         gene_description = '/'.join([gene1_description, gene2_description])
                         strand = '/'.join([gene1_strand, gene2_strand])
@@ -321,21 +332,6 @@ with open(f'{data_dir}/reference_genome/BtVPI_plausible_inverted_repeats.txt', '
 
         count += 1
 
-
-
-def find_spanning_inverted_repeats(JC_coords, delta=1):
-    ''' JC = (start, stop) '''
-    repeat_idx_array = np.array([[ir1[0], ir1[1]] for ir1, ir2 in inverted_repeats.keys()])
-    inv_repeat_idx_array = np.array([[ir2[0], ir2[1]] for ir1, ir2 in inverted_repeats.keys()])
-
-    start, stop = JC_coords
-
-    start_bool = (start - repeat_idx_array[:, 0] > -delta) * (repeat_idx_array[:, 1] - start > -delta)
-    stop_bool = (stop - inv_repeat_idx_array[:, 0] > -delta) * (inv_repeat_idx_array[:, 1] - stop > -delta)
-
-    combined_bool = start_bool * stop_bool
-
-    return combined_bool.sum(), repeat_idx_array[combined_bool], inv_repeat_idx_array[combined_bool]
 
 
 def find_spanning_inverted_repeats(JCcoords1, JCcoords2, delta=1):

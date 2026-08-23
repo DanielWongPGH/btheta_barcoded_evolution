@@ -32,7 +32,7 @@ class Population:
   def selection_step(self):
     weights = self.freqs() * np.exp(self.xs)
     average_exp_fit = weights.sum()
-    self.counts = np.random.poisson( weights * self.N / average_exp_fit)
+    self.counts = rnd.poisson( weights * self.N / average_exp_fit)
     self.extant = self.counts > 0
     self.intXbar += self.Xbar / 2
     self.Xbar = self.calc_mean_x()
@@ -45,7 +45,7 @@ class Population:
     return np.sum( self.freqs() * (self.xs - self.calc_mean_x())**2 )
 
   def sample(self, D):
-    return np.random.poisson(D * self.freqs())
+    return rnd.poisson(D * self.freqs())
 
   def record(self):
     self.gens.append(self.T)
